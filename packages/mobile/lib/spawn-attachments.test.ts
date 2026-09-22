@@ -7,12 +7,12 @@ describe("appendSpawnAttachments", () => {
 			[{ name: "brief.txt", mimeType: "text/plain", data: "YQ==", bytes: 1 }],
 			[
 				{ name: "notes.md", mimeType: "text/markdown", data: "Yg==", bytes: 1 },
-				{ name: "archive.zip", mimeType: "application/zip", data: "Yw==", bytes: 10 * 1024 * 1024 + 1 },
+				{ name: "archive.zip", mimeType: "application/zip", data: "Yw==", bytes: 50 * 1024 * 1024 + 1 },
 			],
 		);
 
 		expect(result.attachments.map((item) => item.name)).toEqual(["brief.txt", "notes.md"]);
-		expect(result.error).toBe("archive.zip must be under 10 MB.");
+		expect(result.error).toBe("archive.zip must be under 50 MB.");
 	});
 
 	it("rejects SVG files before they reach the daemon", () => {

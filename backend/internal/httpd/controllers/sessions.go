@@ -51,8 +51,8 @@ const (
 	// are pasted/dropped into the task brief and inlined as base64 in the JSON
 	// body, so the caps are deliberately conservative.
 	maxAttachments      = 8
-	maxAttachmentBytes  = attachmentstore.MaxFileBytes // 10 MiB per file, decoded
-	maxAttachmentsBytes = 25 << 20                     // 25 MiB total, decoded
+	maxAttachmentBytes  = attachmentstore.MaxFileBytes // 50 MiB per file, decoded
+	maxAttachmentsBytes = 100 << 20                    // 100 MiB total, decoded
 	// maxSpawnBodyBytes bounds the raw request body before it is decoded. The
 	// per-attachment and total caps above only apply after the whole body is
 	// materialized, so without this an oversized body (base64 inflates the

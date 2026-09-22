@@ -380,14 +380,14 @@ describe("useFileAttachments", () => {
 		const { result } = renderHook(() => useFileAttachments());
 		await act(async () => {
 			await result.current.addFiles([
-				file("a.txt", 9 * mb),
-				file("b.txt", 9 * mb),
-				file("c.txt", 9 * mb),
-				file("d.txt", 5 * mb),
+				file("a.txt", 40 * mb),
+				file("b.txt", 40 * mb),
+				file("c.txt", 40 * mb),
+				file("d.txt", 15 * mb),
 			]);
 		});
-		// a + b (18 MB) fit; c would push past MAX_ATTACHMENTS_BYTES and only it is
-		// refused; d (23 MB total) still fits and must survive the batch.
+		// a + b (80 MB) fit; c would push past MAX_ATTACHMENTS_BYTES (100 MB) and only it is
+		// refused; d (95 MB total) still fits and must survive the batch.
 		expect(result.current.attachments.map((a) => a.name)).toEqual(["a.txt", "b.txt", "d.txt"]);
 		expect(result.current.attachments.reduce((sum, a) => sum + a.bytes, 0)).toBeLessThanOrEqual(
 			MAX_ATTACHMENTS_BYTES,

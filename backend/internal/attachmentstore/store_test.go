@@ -313,9 +313,8 @@ func TestStorePutRetainsAttachmentSizeLimit(t *testing.T) {
 	if err := store.Put(context.Background(), "ao-1", workspace, "attachment-empty.bin", nil); err == nil {
 		t.Fatal("Put accepted an empty attachment")
 	}
-	const maxAttachmentBytes = 10 << 20
-	if err := store.Put(context.Background(), "ao-1", workspace, "attachment-large.bin", make([]byte, maxAttachmentBytes+1)); err == nil {
-		t.Fatal("Put accepted an attachment larger than 10 MiB")
+	if err := store.Put(context.Background(), "ao-1", workspace, "attachment-large.bin", make([]byte, MaxFileBytes+1)); err == nil {
+		t.Fatal("Put accepted an attachment larger than MaxFileBytes")
 	}
 }
 

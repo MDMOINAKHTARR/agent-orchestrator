@@ -6,8 +6,8 @@ export type SpawnAttachment = {
 };
 
 const MAX_ATTACHMENTS = 8;
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 100 * 1024 * 1024;
 
 export function appendSpawnAttachments(
 	existing: readonly SpawnAttachment[],
@@ -27,11 +27,11 @@ export function appendSpawnAttachments(
 			continue;
 		}
 		if (item.bytes > MAX_FILE_BYTES) {
-			error ??= `${item.name} must be under 10 MB.`;
+			error ??= `${item.name} must be under 50 MB.`;
 			continue;
 		}
 		if (totalBytes + item.bytes > MAX_TOTAL_BYTES) {
-			error ??= "Attachments must total under 25 MB.";
+			error ??= "Attachments must total under 100 MB.";
 			continue;
 		}
 		attachments.push(item);
