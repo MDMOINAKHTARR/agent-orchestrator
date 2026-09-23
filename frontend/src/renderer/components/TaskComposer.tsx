@@ -160,6 +160,7 @@ export function TaskComposer({
 
 	const createCloudTask = useCallback(
 		async (input: CreateTaskInput): Promise<string> => {
+			if (input.attachments?.length) throw new Error(t("newTask.cloudAttachmentsUnsupported", { defaultValue: "File attachments are not supported for cloud tasks yet." }));
 			void captureRendererEvent("ao.renderer.task_create_requested", { project_id: input.projectId });
 			if (!cloudOrg?.id) throw new Error(t("newTask.unableToStart"));
 			try {
