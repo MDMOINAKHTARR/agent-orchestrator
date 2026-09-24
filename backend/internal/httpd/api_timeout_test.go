@@ -11,6 +11,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
+	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
 )
 
@@ -18,6 +19,7 @@ type timeoutProbeSessionService struct {
 	controllers.SessionService
 	genericBudget chan time.Duration
 	switchBudget  chan time.Duration
+	uploadBudget  chan time.Duration
 }
 
 func (s *timeoutProbeSessionService) List(ctx context.Context, _ sessionsvc.ListFilter) ([]domain.Session, error) {
@@ -40,6 +42,11 @@ func (s *timeoutProbeSessionService) SwitchAgent(
 		RequestedAt:   now,
 		UpdatedAt:     now,
 	}, nil
+}
+
+func (s *timeoutProbeSessionService) StageAttachments(ctx context.Context, _ domain.SessionID, _ []ports.SpawnAttachment) ([]string, error) {
+	s.uploadBudget <- remainingRequestBudget(ctx)
+	return []string{"attachment.txt"}, nil
 }
 
 func remainingRequestBudget(ctx context.Context) time.Duration {
@@ -90,5 +97,27 @@ func TestSwitchAgentRouteUsesOrdinaryTimeoutAndReturnsAccepted(t *testing.T) {
 	}
 	if delta := genericBudget - switchBudget; delta < -50*time.Millisecond || delta > 50*time.Millisecond {
 		t.Fatalf("generic and switch budgets differ by %s: generic=%s switch=%s", delta, genericBudget, switchBudget)
+	}
+}
+
+func TestAttachmentUploadRouteUsesExtendedTimeout(t *testing.T) {
+	svc := &timeoutProbeSessionService{uploadBudget: make(chan time.Duration, 1)}
+	router := NewRouterWithControl(
+		config.Config{RequestTimeout: 250 * time.Millisecond},
+		discardLogger(),
+		nil,
+		APIDeps{Sessions: svc},
+		ControlDeps{},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/ao-1/attachments", bytes.NewBufferString(`{"attachments":[{"mimeType":"text/plain","data":"YQ=="}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("POST attachments status = %d, want 201; body=%s", response.Code, response.Body.String())
+	}
+	budget := <-svc.uploadBudget
+	if budget < 9*time.Minute || budget > 10*time.Minute {
+		t.Fatalf("attachment upload budget = %s, want about 10 minutes", budget)
 	}
 }

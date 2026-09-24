@@ -311,9 +311,10 @@ func extensionForMimeType(mimeType string) string {
 
 	// Preferred extensions for MIME types with multiple options
 	preferredExts := map[string]string{
-		"image/jpeg": ".jpg",
-		"image/jpg":  ".jpg",
-		"text/plain": ".txt",
+		"image/jpeg":      ".jpg",
+		"image/jpg":       ".jpg",
+		"text/plain":      ".txt",
+		"video/quicktime": ".mov",
 	}
 
 	// Check if we have a preferred extension for this MIME type
