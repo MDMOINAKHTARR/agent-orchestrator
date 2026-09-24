@@ -64,7 +64,7 @@ vi.mock("../lib/api-client", () => ({
 vi.mock("../lib/telemetry", () => ({ captureRendererEvent: h.capture }));
 
 vi.mock("../hooks/useWorkspaceQuery", () => ({
-	useCloudProjectsQuery: () => ({ data: undefined }),
+	useCloudProjectsQuery: () => ({ data: h.cloudProjects }),
 	cloudProjectsQueryKey: ["cloud-projects"] as const,
 	useCloudSessionsQuery: () => ({ data: [] }),
 	cloudSessionsQueryKey: ["cloud-sessions"] as const,
@@ -904,6 +904,7 @@ describe("TaskComposer", () => {
 		const body = h.post.mock.calls[0][1].body as {
 			attachments?: Array<{ mimeType: string; data: string }>;
 		};
+		expect(h.post.mock.calls[0][1].headers).toEqual({ "X-AO-Attachment-Upload": "1" });
 		expect(body.attachments).toHaveLength(1);
 		expect(body.attachments?.[0].mimeType).toBe("text/plain");
 		expect(body.attachments?.[0].data.length).toBeGreaterThan(0);
@@ -1036,6 +1037,7 @@ describe("TaskComposer", () => {
 		fireEvent.click(screen.getByText("Start task"));
 
 		await waitFor(() => expect(h.post).toHaveBeenCalledTimes(1));
+		expect(h.post.mock.calls[0][1].headers).toBeUndefined();
 		expect(h.post.mock.calls[0][1].body).not.toHaveProperty("attachments");
 	});
 

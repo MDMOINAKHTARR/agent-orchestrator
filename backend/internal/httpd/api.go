@@ -192,6 +192,8 @@ func newAPIWithLogger(cfg config.Config, deps APIDeps, log *slog.Logger) *API {
 	}
 }
 
+const attachmentUploadHeader = "X-AO-Attachment-Upload"
+
 // Register mounts the bounded /api/v1 REST surface. Long-lived surfaces such
 // as muxed terminal streams stay outside this timeout group.
 func (a *API) Register(root chi.Router) {
@@ -205,8 +207,8 @@ func (a *API) Register(root chi.Router) {
 
 		r.Group(func(r chi.Router) {
 			// Large base64 bodies can spend longer than the ordinary REST budget
-			// uploading over a phone connection. Chi has resolved the route pattern
-			// before running this group's middleware.
+			// uploading over a phone connection. Only attachment-bearing requests
+			// opt in; ordinary calls to the same routes keep the configured timeout.
 			r.Use(func(next http.Handler) http.Handler {
 				ordinary := middleware.Timeout(timeout)(next)
 				upload := middleware.Timeout(max(timeout, 10*time.Minute))(next)
@@ -258,10 +260,17 @@ func attachmentUploadRoute(req *http.Request) bool {
 	if req.Method != http.MethodPost {
 		return false
 	}
-	switch chi.RouteContext(req.Context()).RoutePattern() {
+	route := chi.RouteContext(req.Context()).RoutePattern()
+	// This route only accepts attachments, including from older clients.
+	if route == "/api/v1/sessions/{sessionId}/attachments" {
+		return true
+	}
+	if req.Header.Get(attachmentUploadHeader) != "1" {
+		return false
+	}
+	switch route {
 	case "/api/v1/sessions",
 		"/api/v1/orchestrators/delegate",
-		"/api/v1/sessions/{sessionId}/attachments",
 		"/api/v1/sessions/{sessionId}/send",
 		"/api/v1/sessions/{sessionId}/conversation/messages",
 		"/api/v1/sessions/{sessionId}/conversation/steer",

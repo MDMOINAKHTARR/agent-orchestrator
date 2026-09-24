@@ -28,6 +28,7 @@ describe("mobile Chat API boundaries", () => {
 		expect(JSON.parse(String(init?.body))).toMatchObject({ projectId: "p-1", harness: "codex", kind: "worker", mode: "chat" });
 		expect(session.mode).toBe("chat");
 		expect(init?.headers).toMatchObject({ Authorization: "Bearer secret12" });
+		expect(init?.headers).not.toHaveProperty("X-AO-Attachment-Upload");
 	});
 
 	it("loads a project-scoped model catalog for the selected agent", async () => {
@@ -148,6 +149,9 @@ describe("mobile Chat API boundaries", () => {
 			vi.mocked(fetch).mockImplementationOnce(() => new Promise<Response>((resolve) => { reply = resolve; }));
 			const pending = request();
 			const [, init] = vi.mocked(fetch).mock.calls[0];
+			if (_name !== "chat staging") {
+				expect(init?.headers).toMatchObject({ "X-AO-Attachment-Upload": "1" });
+			}
 			await vi.advanceTimersByTimeAsync(12_001);
 			expect(init?.signal?.aborted).toBe(false);
 			reply(response(body));

@@ -771,6 +771,7 @@ export async function spawnSession(
 ): Promise<DashboardSession> {
 	const res = await req(cfg, `${API}/sessions`, {
 		method: "POST",
+		headers: opts.attachments?.length ? { "X-AO-Attachment-Upload": "1" } : undefined,
 		body: JSON.stringify({
 			projectId: opts.projectId,
 			prompt: opts.prompt,
@@ -807,6 +808,7 @@ export async function delegateTask(
 ): Promise<DashboardSession> {
 	const res = await req(cfg, `${API}/orchestrators/delegate`, {
 		method: "POST",
+		headers: opts.attachments?.length ? { "X-AO-Attachment-Upload": "1" } : undefined,
 		body: JSON.stringify({
 			projectId: opts.projectId,
 			brief: opts.brief,

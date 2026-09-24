@@ -20,6 +20,7 @@ type timeoutProbeSessionService struct {
 	genericBudget chan time.Duration
 	switchBudget  chan time.Duration
 	uploadBudget  chan time.Duration
+	sendBudget    chan time.Duration
 }
 
 func (s *timeoutProbeSessionService) List(ctx context.Context, _ sessionsvc.ListFilter) ([]domain.Session, error) {
@@ -47,6 +48,11 @@ func (s *timeoutProbeSessionService) SwitchAgent(
 func (s *timeoutProbeSessionService) StageAttachments(ctx context.Context, _ domain.SessionID, _ []ports.SpawnAttachment) ([]string, error) {
 	s.uploadBudget <- remainingRequestBudget(ctx)
 	return []string{"attachment.txt"}, nil
+}
+
+func (s *timeoutProbeSessionService) Send(ctx context.Context, _ domain.SessionID, _ string, _ *ports.SpawnAttachment) error {
+	s.sendBudget <- remainingRequestBudget(ctx)
+	return nil
 }
 
 func remainingRequestBudget(ctx context.Context) time.Duration {
@@ -84,6 +90,7 @@ func TestSwitchAgentRouteUsesOrdinaryTimeoutAndReturnsAccepted(t *testing.T) {
 		bytes.NewBufferString(`{"targetHarness":"codex"}`),
 	)
 	switchRequest.Header.Set("Content-Type", "application/json")
+	switchRequest.Header.Set(attachmentUploadHeader, "1")
 	switchResponse := httptest.NewRecorder()
 	router.ServeHTTP(switchResponse, switchRequest)
 	if switchResponse.Code != http.StatusAccepted {
@@ -119,5 +126,45 @@ func TestAttachmentUploadRouteUsesExtendedTimeout(t *testing.T) {
 	budget := <-svc.uploadBudget
 	if budget < 9*time.Minute || budget > 10*time.Minute {
 		t.Fatalf("attachment upload budget = %s, want about 10 minutes", budget)
+	}
+}
+
+func TestAttachmentCapableSendUsesExtendedTimeoutOnlyForUploads(t *testing.T) {
+	const configuredTimeout = 250 * time.Millisecond
+	svc := &timeoutProbeSessionService{sendBudget: make(chan time.Duration, 2)}
+	router := NewRouterWithControl(
+		config.Config{RequestTimeout: configuredTimeout},
+		discardLogger(),
+		nil,
+		APIDeps{Sessions: svc},
+		ControlDeps{},
+	)
+	for _, tc := range []struct {
+		name   string
+		body   string
+		upload bool
+	}{
+		{name: "plain text", body: `{"message":"hello"}`},
+		{name: "attachment", body: `{"message":"hello","attachment":{"mimeType":"text/plain","data":"YQ=="}}`, upload: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/ao-1/send", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			if tc.upload {
+				req.Header.Set(attachmentUploadHeader, "1")
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != http.StatusOK {
+				t.Fatalf("send status = %d, want 200; body=%s", response.Code, response.Body.String())
+			}
+			budget := <-svc.sendBudget
+			if tc.upload && (budget < 9*time.Minute || budget > 10*time.Minute) {
+				t.Fatalf("attachment budget = %s, want about 10 minutes", budget)
+			}
+			if !tc.upload && (budget <= 0 || budget > configuredTimeout) {
+				t.Fatalf("plain text budget = %s, want no more than %s", budget, configuredTimeout)
+			}
+		})
 	}
 }
